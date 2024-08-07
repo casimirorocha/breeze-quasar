@@ -7,6 +7,7 @@ use Illuminate\Contracts\Console\PromptsForMissingInput;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\TestSuite;
 use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputInterface;
@@ -19,21 +20,21 @@ use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\select;
 
-#[AsCommand(name: 'breeze:install')]
 class InstallCommand extends Command implements PromptsForMissingInput
 {
-    use InstallsApiStack, InstallsBladeStack, InstallsInertiaStacks, InstallsLivewireStack;
+    use InstallsApiStack, InstallsBladeStack, InstallsInertiaStacks;
 
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'breeze:install {stack : The development stack that should be installed (blade,livewire,livewire-functional,react,vue,api)}
+    protected $signature = 'larabase:install {stack : The development stack that should be installed (blade,vue,api)}
                             {--dark : Indicate that dark mode support should be installed}
                             {--pest : Indicate that Pest should be installed}
                             {--ssr : Indicates if Inertia SSR support should be installed}
-                            {--typescript : Indicates if TypeScript is preferred for the Inertia stack}
+                            {--ts : Indicates if TypeScript is preferred for the Inertia stack}
+                            {--debugbar : Indicates if debugbar is preferred for the Inertia stack}
                             {--composer=global : Absolute path to the Composer binary which should be used to install packages}';
 
     /**
@@ -41,30 +42,24 @@ class InstallCommand extends Command implements PromptsForMissingInput
      *
      * @var string
      */
-    protected $description = 'Install the Breeze controllers and resources';
+    protected $description = 'Install the Breeze with InertiaJS and Quasar Framework starter kit and resources';
 
     /**
      * Execute the console command.
      *
      * @return int|null
      */
-    public function handle()
+    public function handle(): ?int
     {
         if ($this->argument('stack') === 'vue') {
             return $this->installInertiaVueStack();
-        } elseif ($this->argument('stack') === 'react') {
-            return $this->installInertiaReactStack();
         } elseif ($this->argument('stack') === 'api') {
             return $this->installApiStack();
         } elseif ($this->argument('stack') === 'blade') {
             return $this->installBladeStack();
-        } elseif ($this->argument('stack') === 'livewire') {
-            return $this->installLivewireStack();
-        } elseif ($this->argument('stack') === 'livewire-functional') {
-            return $this->installLivewireStack(true);
         }
 
-        $this->components->error('Invalid stack. Supported stacks are [blade], [livewire], [livewire-functional], [react], [vue], and [api].');
+        $this->components->error('Invalid stack. Supported stacks are [blade], [vue], and [api].');
 
         return 1;
     }
@@ -74,14 +69,12 @@ class InstallCommand extends Command implements PromptsForMissingInput
      *
      * @return bool
      */
-    protected function installTests()
+    protected function installTests(): bool
     {
         (new Filesystem)->ensureDirectoryExists(base_path('tests/Feature'));
 
         $stubStack = match ($this->argument('stack')) {
             'api' => 'api',
-            'livewire' => 'livewire-common',
-            'livewire-functional' => 'livewire-common',
             default => 'default',
         };
 
@@ -101,18 +94,26 @@ class InstallCommand extends Command implements PromptsForMissingInput
             (new Filesystem)->copyDirectory(__DIR__.'/../../stubs/'.$stubStack.'/tests/Feature', base_path('tests/Feature'));
         }
 
+        if ($this->confirm('debugbar')) {
+            if (! $this->requireComposerPackages([
+                'barryvdh/laravel-debugbar:^3.13',
+            ], true)) {
+                return false;
+            }
+        }
+
         return true;
     }
 
     /**
      * Install the given middleware names into the application.
      *
-     * @param  array|string  $name
-     * @param  string  $group
-     * @param  string  $modifier
+     * @param $names
+     * @param string $group
+     * @param string $modifier
      * @return void
      */
-    protected function installMiddleware($names, $group = 'web', $modifier = 'append')
+    protected function installMiddleware($names, string $group = 'web', string $modifier = 'append'): void
     {
         $bootstrapApp = file_get_contents(base_path('bootstrap/app.php'));
 
@@ -138,10 +139,10 @@ class InstallCommand extends Command implements PromptsForMissingInput
     /**
      * Install the given middleware aliases into the application.
      *
-     * @param  array  $aliases
+     * @param array $aliases
      * @return void
      */
-    protected function installMiddlewareAliases($aliases)
+    protected function installMiddlewareAliases(array $aliases): void
     {
         $bootstrapApp = file_get_contents(base_path('bootstrap/app.php'));
 
@@ -167,10 +168,10 @@ class InstallCommand extends Command implements PromptsForMissingInput
     /**
      * Determine if the given Composer package is installed.
      *
-     * @param  string  $package
+     * @param string $package
      * @return bool
      */
-    protected function hasComposerPackage($package)
+    protected function hasComposerPackage(string $package): bool
     {
         $packages = json_decode(file_get_contents(base_path('composer.json')), true);
 
@@ -182,10 +183,10 @@ class InstallCommand extends Command implements PromptsForMissingInput
      * Installs the given Composer Packages into the application.
      *
      * @param  array  $packages
-     * @param  bool  $asDev
+     * @param bool $asDev
      * @return bool
      */
-    protected function requireComposerPackages(array $packages, $asDev = false)
+    protected function requireComposerPackages(array $packages, bool $asDev = false): bool
     {
         $composer = $this->option('composer');
 
@@ -210,10 +211,10 @@ class InstallCommand extends Command implements PromptsForMissingInput
      * Removes the given Composer Packages from the application.
      *
      * @param  array  $packages
-     * @param  bool  $asDev
+     * @param bool $asDev
      * @return bool
      */
-    protected function removeComposerPackages(array $packages, $asDev = false)
+    protected function removeComposerPackages(array $packages, bool $asDev = false): bool
     {
         $composer = $this->option('composer');
 
@@ -238,10 +239,10 @@ class InstallCommand extends Command implements PromptsForMissingInput
      * Update the "package.json" file.
      *
      * @param  callable  $callback
-     * @param  bool  $dev
+     * @param bool $dev
      * @return void
      */
-    protected static function updateNodePackages(callable $callback, $dev = true)
+    protected static function updateNodePackages(callable $callback, bool $dev = true): void
     {
         if (! file_exists(base_path('package.json'))) {
             return;
@@ -269,7 +270,7 @@ class InstallCommand extends Command implements PromptsForMissingInput
      *
      * @return void
      */
-    protected static function flushNodeModules()
+    protected static function flushNodeModules(): void
     {
         tap(new Filesystem, function ($files) {
             $files->deleteDirectory(base_path('node_modules'));
@@ -282,12 +283,12 @@ class InstallCommand extends Command implements PromptsForMissingInput
     /**
      * Replace a given string within a given file.
      *
-     * @param  string  $search
-     * @param  string  $replace
-     * @param  string  $path
+     * @param string $search
+     * @param string $replace
+     * @param string $path
      * @return void
      */
-    protected function replaceInFile($search, $replace, $path)
+    protected function replaceInFile(string $search, string $replace, string $path): void
     {
         file_put_contents($path, str_replace($search, $replace, file_get_contents($path)));
     }
@@ -297,7 +298,7 @@ class InstallCommand extends Command implements PromptsForMissingInput
      *
      * @return string
      */
-    protected function phpBinary()
+    protected function phpBinary(): string
     {
         return (new PhpExecutableFinder())->find(false) ?: 'php';
     }
@@ -305,10 +306,10 @@ class InstallCommand extends Command implements PromptsForMissingInput
     /**
      * Run the given commands.
      *
-     * @param  array  $commands
+     * @param array $commands
      * @return void
      */
-    protected function runCommands($commands)
+    protected function runCommands(array $commands): void
     {
         $process = Process::fromShellCommandline(implode(' && ', $commands), null, null, null, null);
 
@@ -328,10 +329,10 @@ class InstallCommand extends Command implements PromptsForMissingInput
     /**
      * Remove Tailwind dark classes from the given files.
      *
-     * @param  \Symfony\Component\Finder\Finder  $finder
+     * @param Finder $finder
      * @return void
      */
-    protected function removeDarkClasses(Finder $finder)
+    protected function removeDarkClasses(Finder $finder): void
     {
         foreach ($finder as $file) {
             file_put_contents($file->getPathname(), preg_replace('/\sdark:[^\s"\']+/', '', $file->getContents()));
@@ -341,7 +342,6 @@ class InstallCommand extends Command implements PromptsForMissingInput
     /**
      * Prompt for missing input arguments using the returned questions.
      *
-     * @return array
      */
     protected function promptForMissingArgumentsUsing()
     {
@@ -350,12 +350,10 @@ class InstallCommand extends Command implements PromptsForMissingInput
                 label: 'Which Breeze stack would you like to install?',
                 options: [
                     'blade' => 'Blade with Alpine',
-                    'livewire' => 'Livewire (Volt Class API) with Alpine',
-                    'livewire-functional' => 'Livewire (Volt Functional API) with Alpine',
-                    'react' => 'React with Inertia',
-                    'vue' => 'Vue with Inertia',
+                    'vue' => 'Vue with Inertiajs',
                     'api' => 'API only',
                 ],
+                default: 'vue',
                 scroll: 6,
             ),
         ];
@@ -364,29 +362,35 @@ class InstallCommand extends Command implements PromptsForMissingInput
     /**
      * Interact further with the user if they were prompted for missing arguments.
      *
-     * @param  \Symfony\Component\Console\Input\InputInterface  $input
-     * @param  \Symfony\Component\Console\Output\OutputInterface  $output
+     * @param InputInterface $input
+     * @param OutputInterface $output
      * @return void
      */
-    protected function afterPromptingForMissingArguments(InputInterface $input, OutputInterface $output)
+    protected function afterPromptingForMissingArguments(InputInterface $input, OutputInterface $output): void
     {
         $stack = $input->getArgument('stack');
 
-        if (in_array($stack, ['react', 'vue'])) {
+        if ($stack == 'vue') {
             collect(multiselect(
                 label: 'Would you like any optional features?',
                 options: [
                     'dark' => 'Dark mode',
                     'ssr' => 'Inertia SSR',
-                    'typescript' => 'TypeScript',
-                ]
+                    'ts' => 'TypeScript'
+                ],
+                default: collect(['dark,ssr,ts']),
             ))->each(fn ($option) => $input->setOption($option, true));
-        } elseif (in_array($stack, ['blade', 'livewire', 'livewire-functional'])) {
+        } elseif ($stack == 'blade') {
             $input->setOption('dark', confirm(
                 label: 'Would you like dark mode support?',
-                default: false
+                default: true
             ));
         }
+
+        $input->setOption('debugbar', confirm(
+            label: "Would you like to install barryvdh/laravel-debugbar to develop professionally?",
+            default: true
+        ));
 
         $input->setOption('pest', select(
             label: 'Which testing framework do you prefer?',
@@ -400,8 +404,8 @@ class InstallCommand extends Command implements PromptsForMissingInput
      *
      * @return bool
      */
-    protected function isUsingPest()
+    protected function isUsingPest(): bool
     {
-        return class_exists(\Pest\TestSuite::class);
+        return class_exists(TestSuite::class);
     }
 }

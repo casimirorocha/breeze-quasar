@@ -9,7 +9,6 @@ trait InstallsApiStack
     /**
      * Install the API Breeze stack.
      *
-     * @return int|null
      */
     protected function installApiStack()
     {
@@ -75,7 +74,7 @@ trait InstallsApiStack
      *
      * @return void
      */
-    protected function removeScaffoldingUnnecessaryForApis()
+    protected function removeScaffoldingUnnecessaryForApis(): void
     {
         $files = new Filesystem;
 

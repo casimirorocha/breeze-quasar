@@ -22,7 +22,7 @@ class BreezeServiceProvider extends ServiceProvider implements DeferrableProvide
      *
      * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         if (! $this->app->runningInConsole()) {
             return;
@@ -38,7 +38,7 @@ class BreezeServiceProvider extends ServiceProvider implements DeferrableProvide
      *
      * @return array
      */
-    public function provides()
+    public function provides(): array
     {
         return [Console\InstallCommand::class];
     }

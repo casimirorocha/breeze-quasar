@@ -1,6 +1,6 @@
 {
-    "name": "laravel/breeze",
-    "description": "Minimal Laravel authentication scaffolding with Blade and Tailwind.",
+    "name": "casimirorocha/larabreeze-quasar",
+    "description": "Minimal Laravel authentication scaffolding with Blade and Quasar Framework.",
     "keywords": ["laravel", "auth"],
     "license": "MIT",
     "support": {
